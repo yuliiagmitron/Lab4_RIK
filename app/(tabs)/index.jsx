@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,59 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Animated,
 } from 'react-native';
 import questions from '../../data/questions';
 import { saveResults } from '../../utils/saveResults';
 
 export default function SurveyScreen() {
   const [answers, setAnswers] = useState({});
+  const [snackbar, setSnackbar] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const timerRef = useRef(null);
+  const countdownRef = useRef(null);
+  const savedAnswersRef = useRef({});
+  const progressAnim = useRef(new Animated.Value(1)).current;
+
+  const isFormEmpty = Object.keys(answers).length === 0 ||
+    Object.values(answers).every((v) =>
+      Array.isArray(v) ? v.length === 0 : !v || !v.trim()
+    );
+
+  const handleClear = () => {
+    if (isFormEmpty) return;
+
+    savedAnswersRef.current = answers;
+    setSnackbar(true);
+    setCountdown(5);
+    progressAnim.setValue(1);
+
+    Animated.timing(progressAnim, {
+      toValue: 0,
+      duration: 5000,
+      useNativeDriver: false,
+    }).start();
+
+    let remaining = 5;
+    countdownRef.current = setInterval(() => {
+      remaining -= 1;
+      setCountdown(remaining);
+    }, 1000);
+
+    timerRef.current = setTimeout(() => {
+      clearInterval(countdownRef.current);
+      setAnswers({});
+      setSnackbar(false);
+    }, 5000);
+  };
+
+  const handleUndo = () => {
+    clearTimeout(timerRef.current);
+    clearInterval(countdownRef.current);
+    progressAnim.stopAnimation();
+    setAnswers(savedAnswersRef.current);
+    setSnackbar(false);
+  };
 
   const handleTextChange = (id, value) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
@@ -122,9 +169,41 @@ export default function SurveyScreen() {
         </View>
       ))}
 
+      <TouchableOpacity
+        style={[styles.clearButton, isFormEmpty && styles.clearButtonDisabled]}
+        onPress={handleClear}
+        activeOpacity={isFormEmpty ? 1 : 0.7}
+      >
+        <Text style={styles.buttonText}>Очистити форму</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
         <Text style={styles.buttonText}>Надіслати</Text>
       </TouchableOpacity>
+
+      {snackbar && (
+        <View style={styles.snackbar}>
+          <View style={styles.snackbarRow}>
+            <Text style={styles.snackbarText}>Форму буде очищено ({countdown}с)</Text>
+            <TouchableOpacity onPress={handleUndo}>
+              <Text style={styles.snackbarUndo}>Скасувати</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.progressTrack}>
+            <Animated.View
+              style={[
+                styles.progressBar,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ]}
+            />
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -237,6 +316,17 @@ const styles = StyleSheet.create({
     color: '#2d3436',
     flex: 1,
   },
+  clearButton: {
+    backgroundColor: '#e74c3c',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  clearButtonDisabled: {
+    backgroundColor: '#f1a9a0',
+  },
   button: {
     backgroundColor: '#3498db',
     borderRadius: 12,
@@ -248,5 +338,49 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  snackbar: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#2d3436',
+    borderRadius: 10,
+    paddingTop: 14,
+    paddingBottom: 10,
+    paddingHorizontal: 18,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  snackbarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  snackbarText: {
+    color: '#ffffff',
+    fontSize: 14,
+    flex: 1,
+  },
+  snackbarUndo: {
+    color: '#3498db',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 12,
+  },
+  progressTrack: {
+    height: 4,
+    backgroundColor: '#636e72',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e74c3c',
+    borderRadius: 2,
   },
 });
