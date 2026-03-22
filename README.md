@@ -60,6 +60,9 @@ npm install
 
 # Запустити у браузері
 npx expo start --web
+
+# Запустити через Expo Tunnel
+npx expo start --tunnel
 ```
 
 Додаток відкриється у браузері за адресою `http://localhost:8081`.

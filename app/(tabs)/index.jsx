@@ -28,7 +28,7 @@ export default function SurveyScreen() {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const unanswered = questions.filter((q) => {
       const val = answers[q.id];
       if (q.type === 'text') return !val || !val.trim();
@@ -49,7 +49,7 @@ export default function SurveyScreen() {
       answer: answers[q.id],
     }));
 
-    saveResults(results);
+    await saveResults(results);
     Alert.alert('Дякуємо!', 'Ваші відповіді збережено у файл survey_results.txt');
     setAnswers({});
   };
